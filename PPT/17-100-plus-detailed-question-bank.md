@@ -302,6 +302,162 @@
 ## Q100. What is your standard production incident lifecycle?
 **Answer:** Detect → assess impact → isolate the failing boundary → mitigate safely → verify service → reconcile business transactions → document RCA → implement prevention. This keeps recovery fast while protecting evidence, data integrity and customer impact.
 
+
+# Scenario-Based Interview Questions & Answers
+
+> These are intentionally production-style. In an interview, explain **impact → evidence → isolation → safe mitigation → verification → reconciliation → prevention**.
+
+## Q101. Scenario: An API works in DEV but returns 500 in PROD. What do you do?
+**Answer:** I do not restart immediately. I first compare DEV and PROD configuration, secure properties, environment variables, endpoints, certificates and credentials. Then I check Runtime Manager application health, recent deployment history and logs using the correlation ID. I verify the downstream system and compare a successful DEV transaction with the failing PROD transaction. Once the failure boundary is proven, I apply the approved fix and run a smoke test.
+
+## Q102. Scenario: Users report that an API suddenly became slow, but there are no 500 errors. How do you troubleshoot?
+**Answer:** I compare current latency with the normal baseline and break the transaction into inbound gateway, Mule processing, DataWeave and downstream-call timings. I check CPU, memory, worker health, connection pools and downstream response time. I avoid increasing concurrency or timeout blindly because that can hide the bottleneck or overload a dependency.
+
+## Q103. Scenario: An API times out after 10 seconds, but the downstream payment system can take 30 seconds. What is the risk?
+**Answer:** A timeout does not prove that the payment failed. The downstream system may have completed the payment while Mule or the client stopped waiting. Retrying the entire request can therefore create a duplicate payment. I would use an idempotency key/business transaction ID, persistent transaction status, appropriate asynchronous processing where suitable, controlled retries and reconciliation.
+
+## Q104. Scenario: A client retries because of a timeout and duplicate records appear. How do you investigate?
+**Answer:** I compare the business transaction ID, request timestamps, correlation IDs, retry history and downstream records. I determine whether the first request completed but its response was lost. Then I introduce or verify idempotency controls so the same logical request cannot create a second business effect.
+
+## Q105. Scenario: 400 files are stuck because the consumer/agent is stopped. What do you do?
+**Answer:** I quantify the business impact and confirm the queue/file backlog. I verify the producer is healthy, inspect consumer state and confirm there is no competing downstream problem. If restart is approved, I restart the consumer in a controlled manner, monitor processing rate and queue depth, and reconcile all 400 files. I also investigate why the consumer stopped and improve alerting if possible.
+
+## Q106. Scenario: The queue depth is continuously increasing. What is your approach?
+**Answer:** I compare producer rate with consumer rate. Then I check consumer count/state, processing latency, errors, connection health and downstream availability. If consumers are healthy but slower than the incoming rate, I evaluate approved scaling or throttling options. If they are failing, I isolate the failure first. After recovery, I reconcile backlog and failed messages.
+
+## Q107. Scenario: MQ messages are repeatedly failing for one payload. What do you do?
+**Answer:** I treat it as a potential poison message. I capture the message ID and error, compare the payload with successful messages and determine whether the problem is data-specific or systemic. I route the message through the approved exception/DLQ process instead of allowing infinite retries, then correct the issue and replay only after confirming idempotency.
+
+## Q108. Scenario: One Scatter-Gather branch succeeds and another fails. What do you check?
+**Answer:** I identify each branch's outcome separately. I determine whether the successful branch already created or updated business data before replaying anything. I inspect the error handler and correlation IDs for the failed branch, recover only the failed operation where safe, and reconcile the combined business result.
+
+## Q109. Scenario: A Choice Router selected the wrong route. How do you troubleshoot it?
+**Answer:** I inspect the actual payload, attributes and variables used by each condition. I verify condition ordering because Choice evaluates routes top-to-bottom. I test the expression with the failing input and confirm whether an earlier condition matched unexpectedly. I then fix the condition and regression-test the other routes.
+
+## Q110. Scenario: A Choice route fails halfway through processing. Will Mule try the next route?
+**Answer:** No. Once Choice selects the first matching route, a failure in that route does not cause Mule to go back and select another route. I troubleshoot the selected route's error handling and recovery logic.
+
+## Q111. Scenario: A For Each processes 10,000 records very slowly. What do you investigate?
+**Answer:** I check whether processing is sequential by design, how expensive each iteration is, and whether every iteration calls a database or API. I look for repeated transformations and unnecessary network calls. If records are independent, I consider controlled parallelism or Batch processing while respecting downstream capacity and ordering requirements.
+
+## Q112. Scenario: Parallel For Each makes the application faster but the database starts failing. Why?
+**Answer:** Parallel processing increases concurrent database requests. The database connection pool, database CPU or connection limits may become saturated. I reduce concurrency to a safe level, inspect pool metrics and database capacity, and use controlled batching or sequential processing when appropriate.
+
+## Q113. Scenario: A scheduled Mule flow did not run at the expected time. What do you check?
+**Answer:** I verify the application was running, scheduler configuration and timezone, deployment/restart history, previous execution, scheduler logs and whether an error occurred before the business operation started. I also check whether another instance or configuration prevented execution.
+
+## Q114. Scenario: The application restarted successfully but the issue returned two hours later. What does that tell you?
+**Answer:** The restart was temporary mitigation, not root-cause resolution. I investigate recurring resource exhaustion, memory pressure, connection-pool exhaustion, thread starvation, stuck connections, downstream instability or scheduled workload. I compare metrics before and after the restart to find the recurring pattern.
+
+## Q115. Scenario: There are no Mule logs for a user's failed API request. What do you conclude?
+**Answer:** I do not immediately conclude Mule is down. I determine whether the request reached the Mule listener by checking gateway/load-balancer evidence, access logs, network/DNS behavior, API policies and upstream logs. If there is genuinely no Mule-side evidence, the failure may be before Mule processing.
+
+## Q116. Scenario: An API returns 401 only in PROD. What do you check?
+**Answer:** I compare PROD credentials, tokens, client configuration, OAuth settings, secure properties and policy configuration with the known-working environment. I check whether the credential expired or the authorization header is missing. I avoid changing code until the authentication boundary is proven.
+
+## Q117. Scenario: An API returns 403 even though authentication succeeds. What do you investigate?
+**Answer:** I check scopes, roles, client permissions, API policies and downstream authorization. Authentication proves identity, but authorization determines whether that identity can perform the operation.
+
+## Q118. Scenario: An API returns 404 after a successful deployment. What do you check?
+**Answer:** I verify application state, listener configuration, base path, API path, HTTP method and API gateway/policy routing. I compare the requested URL with the deployed contract. A successful deployment only proves the application was deployed; it does not prove the caller used the correct endpoint.
+
+## Q119. Scenario: An API starts returning 429 after a traffic increase. What do you do?
+**Answer:** I check API policy limits, request volume, consumer behavior, downstream capacity and retry patterns. I determine whether the throttling is expected protection or an incorrectly configured limit. I avoid creating a retry storm by making clients retry every 429 aggressively.
+
+## Q120. Scenario: SFTP says a file does not exist, but the business team can see the file. How do you investigate?
+**Answer:** I verify the exact remote directory, filename, case, extension, permissions and account being used by Mule. I check whether another process moved or renamed the file and whether Mule is connecting to the expected environment/server. I compare the failed file with a known successful file.
+
+## Q121. Scenario: SFTP works intermittently. What evidence do you collect?
+**Answer:** I correlate successful and failed timestamps and inspect connection errors, DNS/network behavior, remote server availability, authentication, connection limits and file timing. If possible, I compare Mule logs with SFTP server logs to identify the failure boundary.
+
+## Q122. Scenario: Database connections are exhausted in production. What do you do?
+**Answer:** I check active connections, pool configuration, query duration, transaction behavior and whether connections are being held longer than expected. I also check database capacity. I avoid simply increasing the pool because that can push the database further into saturation.
+
+## Q123. Scenario: A DB query suddenly takes 60 seconds instead of 2 seconds. What is your approach?
+**Answer:** I determine whether the query changed or the database environment changed. I check database load, locks, indexes/query-plan information from the DBA team, parameter differences, network latency and connection-pool wait time. I compare with a known successful execution before changing Mule timeout settings.
+
+## Q124. Scenario: A certificate expired in production. What do you do?
+**Answer:** I identify all affected integrations and confirm the exact certificate and trust chain. I obtain the approved replacement securely, update the correct environment configuration/keystore, validate the chain and perform a controlled connectivity test. I monitor dependent APIs afterward and document the expiry-prevention action.
+
+## Q125. Scenario: SSL handshake works in DEV but fails in PROD. What do you compare?
+**Answer:** I compare certificate chains, aliases, truststores, keystores, hostname/SAN, protocol versions, environment properties and endpoint configuration. I also check whether the PROD endpoint presents a different certificate chain. I use the working DEV configuration only as a reference, not as proof that PROD should be identical.
+
+## Q126. Scenario: A production password changed and the Mule application started failing. How do you recover?
+**Answer:** I confirm the impacted connector and exact authentication error, then obtain the approved new secret securely. I update the environment-specific secure configuration according to the deployment process and validate the connection. I never place the password in source control or plain-text incident communication.
+
+## Q127. Scenario: CI/CD build is green, but deployment fails at startup. Why can this happen?
+**Answer:** Build success proves the artifact could be compiled and packaged; it does not prove that production configuration is valid. Startup can fail because of missing properties, invalid secrets, certificates, runtime incompatibility, connector configuration or environment-specific dependency issues. I inspect the first startup error.
+
+## Q128. Scenario: Deployment succeeds, but the application is unhealthy. What is your first response?
+**Answer:** I check application state, startup logs, worker/replica health and listener availability. Then I verify configuration, certificates, credentials and downstream connectivity. I preserve evidence before rollback and choose rollback or fix-forward based on impact and approved release procedures.
+
+## Q129. Scenario: A deployment causes errors immediately. When do you rollback?
+**Answer:** I correlate the errors with the release, quantify business impact and determine whether the previous version is known-good. If impact is high and the previous release is safe, approved rollback can restore service quickly. I preserve logs and release evidence first and still investigate the root cause afterward.
+
+## Q130. Scenario: Business says a transaction failed, but Mule shows HTTP 200. What do you do?
+**Answer:** I do not treat HTTP 200 as proof of business success. I inspect the response body and business status, trace downstream operations and verify the actual record/state in the system of record. If the technical response is successful but the business result is wrong, I investigate transformation or business-rule logic and reconcile the transaction.
+
+## Q131. Scenario: A production incident cannot be reproduced in lower environments. How do you proceed?
+**Answer:** I compare the exact production payload, configuration, data, timing, concurrency, certificates, network path and downstream behavior. I use production evidence safely and avoid copying sensitive data unnecessarily. I look for environment-specific or timing-dependent conditions instead of assuming the issue disappeared.
+
+## Q132. Scenario: SAP is slow and Mule is timing out. Is Mule the problem?
+**Answer:** Not necessarily. I correlate Mule timeout timestamps with SAP response times and inspect the outbound request and SAP evidence. If Mule sends successfully and SAP responds too slowly, the evidence points to the downstream path. I still verify Mule connection pools and timeout configuration before assigning ownership.
+
+## Q133. Scenario: Salesforce sends duplicate events to Mule. How do you prevent duplicate processing?
+**Answer:** I identify a stable event/business ID and implement idempotency or deduplication using an approved persistent state mechanism. The check must work across multiple workers, not just in local memory. I also design retries and reconciliation around the same business key.
+
+## Q134. Scenario: An API policy blocks valid clients after a configuration change. What do you do?
+**Answer:** I verify the policy configuration, client application identity, credentials/scopes, policy limits and deployment/configuration history. I compare a blocked client with a known-working client and confirm whether the policy rejection occurs before the Mule application. I roll back the policy change if approved and impact is significant.
+
+## Q135. Scenario: A batch contains 100,000 records and 500 fail. How do you handle it?
+**Answer:** I identify whether failures are record-specific or systemic. I preserve failed-record details, avoid rerunning all 100,000 records blindly and use the batch error information to isolate failed records. After fixing the cause, I reprocess only what is safe and reconcile successful and failed counts.
+
+## Q136. Scenario: One database update succeeds, but the next downstream API call fails. What is your recovery plan?
+**Answer:** I classify it as a partial failure. I verify the database update before replaying the transaction, then determine whether the downstream call can be retried safely. If the architecture requires compensation, I follow the approved recovery/Saga pattern. Final business state must be reconciled across systems.
+
+## Q137. Scenario: A downstream API is unavailable for 30 minutes. Should Mule continuously retry?
+**Answer:** No. Uncontrolled retries can create a retry storm. I use bounded retries with backoff where appropriate, queue-based asynchronous buffering when suitable, and a DLQ/error process for exhausted messages. The design should protect both Mule and the downstream service.
+
+## Q138. Scenario: CPU is high on one worker while other workers are normal. What do you check?
+**Answer:** I compare traffic distribution, long-running requests, specific payloads, thread activity and application logs for that worker. I check whether a particular flow or request pattern is causing excessive processing. I do not immediately restart the worker without preserving evidence.
+
+## Q139. Scenario: Memory usage keeps increasing after every large file. What do you investigate?
+**Answer:** I inspect payload sizes, DataWeave transformations, streaming behavior, variables retaining large objects, repeated materialization and connector behavior. I determine whether memory returns to normal after processing or continuously grows. The fix should address the retained data or processing pattern, not just increase memory.
+
+## Q140. Scenario: A P1 occurs during your shift. How would you handle it?
+**Answer:** I first confirm impact and severity, open or join the incident bridge, establish roles and start evidence collection. I communicate concise updates, isolate the failure boundary and perform only approved low-risk mitigation. After service recovery, I verify business transactions, reconcile data and contribute to RCA and prevention.
+
+## Q141. Scenario: You are asked for an ETA before knowing the root cause. What do you say?
+**Answer:** I do not invent an ETA. I state what is confirmed, what is being investigated, the current mitigation and when the next update will be provided. Once the failure boundary and recovery path are known, I provide a realistic recovery estimate.
+
+## Q142. Scenario: Another team says Mule is causing the incident, but their system shows errors too. How do you respond?
+**Answer:** I avoid blame and use evidence. I correlate timestamps, request IDs, Mule outbound requests and their system logs. I identify where the first unexpected behavior occurs and assign the failure boundary based on evidence. If ownership is shared, I coordinate both teams toward recovery.
+
+## Q143. Scenario: Manual reprocessing is requested for 5,000 failed files. What must you check first?
+**Answer:** I verify why the files failed, whether the original attempts partially succeeded, whether downstream operations are idempotent, whether files were already processed, and whether there is an approved batch-reprocessing procedure. I never blindly replay thousands of transactions because that can create duplicates.
+
+## Q144. Scenario: After recovery, the queue is empty. Can you close the incident?
+**Answer:** Not immediately. An empty queue proves messages are no longer waiting, but it does not prove every business transaction completed correctly. I reconcile received, processed, failed and duplicate counts and verify downstream business state.
+
+## Q145. Scenario: A customer reports intermittent failures but monitoring shows the API as healthy. What do you investigate?
+**Answer:** I look beyond availability. I inspect error rate, latency percentiles, specific endpoints, payload patterns, consumer identity, time windows and downstream dependencies. A service can be technically up while a subset of transactions fails.
+
+## Q146. Scenario: A new release changes a DataWeave mapping and only some customers fail. How do you isolate it?
+**Answer:** I compare successful and failing payload structures and identify the field or data condition triggering the transformation difference. I correlate failures with the release, test representative edge cases and determine whether rollback or fix-forward is safer.
+
+## Q147. Scenario: A client says the API is returning incorrect data, but Mule logs show no transformation error. What do you check?
+**Answer:** I compare source payload, DataWeave output, downstream response and final API response. Incorrect data can be caused by a valid transformation implementing the wrong business rule, stale source data, incorrect filtering or a downstream response. I trace the data rather than relying only on error logs.
+
+## Q148. Scenario: An application has been restarted several times during incidents. What would you recommend?
+**Answer:** I recommend treating restart as controlled mitigation, not the permanent solution. I analyze restart timing, CPU/memory, connection pools, thread behavior, dependency health and application logs to identify the recurring condition. I also improve monitoring so the underlying symptom is detected earlier.
+
+## Q149. Scenario: The API is receiving traffic, but the downstream system says it received nothing. How do you investigate?
+**Answer:** I trace the transaction using correlation ID, outbound connector logs and network/gateway evidence. I verify that Mule actually attempted the outbound request and received a connection/response. If Mule shows a successful outbound request but the downstream has no record, I coordinate with the network/downstream team and verify routing, load balancer and transaction logging.
+
+## Q150. Scenario: What is the strongest way to answer any MuleSoft production-support scenario in an interview?
+**Answer:** I structure the response as: **impact → evidence → isolation → safe mitigation → verification → reconciliation → RCA/prevention**. I explain what I would check first, why I would check it, what evidence would change my next action and how I would prevent recurrence. This demonstrates production ownership rather than simply naming a MuleSoft component.
+
+
 ---
 
 ## Final Interview Rule
