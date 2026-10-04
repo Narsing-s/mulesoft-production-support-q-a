@@ -28,8 +28,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # Pages must be enabled once in repository Settings → Pages.
+          # enablement:true cannot use the default GITHUB_TOKEN safely.
       - name: Upload site
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: docs
       - name: Deploy
