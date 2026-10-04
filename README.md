@@ -22,7 +22,11 @@ This repository is intentionally written as **slide-wise Markdown**, so every to
 14. HR and behavioral
 15. Rapid-fire revision
 16. Final revision checklist
-17. **100+ detailed interview question bank (Q91–Q140)**
+17. **150 detailed interview question bank (Q1–Q150)**
+18. **Dedicated scenario, difference and advanced Q&A collection (Q101–Q280)**
+
+## Modern web dashboard
+Open the repository's **GitHub Pages interview dashboard** for a searchable, modern study interface. The dashboard links directly to every module and scenario set.
 
 ## Answer pattern
 For technical questions:
